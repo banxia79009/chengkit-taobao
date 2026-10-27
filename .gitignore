@@ -1,0 +1,13 @@
+runtime/
+state/
+private/
+logs/
+node_modules/
+mcp-config.generated.json
+.env
+.env.*
+*.log
+*.dpapi
+*.pem
+*.key
+*.pfx
