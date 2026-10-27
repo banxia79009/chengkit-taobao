@@ -1,0 +1,3 @@
+import {cli,Strategy} from '{{TOOLS_URL}}/opencli-api.mjs';
+import {runSearch} from '{{TOOLS_URL}}/taobao-search-adapter.mjs';
+cli({site:'taobao',name:'search',access:'read',description:'淘宝商品搜索及网页原生筛选',domain:'s.taobao.com',strategy:Strategy.COOKIE,navigateBefore:false,siteSession:'persistent',args:[{name:'query',positional:true,required:true},{name:'sort',default:'default',choices:['default','sale','price']},{name:'limit',type:'int',default:5},{name:'include-filters',type:'bool',default:false,help:'按需读取全部筛选选项，默认不展开'},{name:'filters-json',help:'原生价格区间和筛选组JSON'}],columns:['payload'],func:runSearch});
