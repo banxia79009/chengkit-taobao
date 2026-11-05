@@ -38,7 +38,7 @@ function createHome({taobao,browserGuard,stopFile=path.join(__dirname,'..','stat
     else {await command(['open','https://www.taobao.com/']);restored=true;}
     const popup=await command(['eval','('+dismissRedPacket.toString()+')('+(now()+20000)+')']);
     if(popup?.closed)await sleep(300);
-    const items=new Map();let y=0,home='';
+    const items=new Map();let y=0,home='',pageDiagnostics=null;
     for(let i=0;i<screens;i++){
      check();
      if(i>0||(action==='next'&&!restored)){
@@ -53,9 +53,9 @@ function createHome({taobao,browserGuard,stopFile=path.join(__dirname,'..','stat
       const clean=new URL(u.origin+'/item.htm');clean.searchParams.set('id',item.item_id);
       items.set(item.item_id,{item_id:item.item_id,url:clean.href,title:String(item.title||'').slice(0,250),displayed_price:String(item.displayed_price||'').slice(0,50),summary:String(item.summary||'').slice(0,500)});
      }
-     y=data.y;home=data.homepage;
+     y=data.y;home=data.homepage;pageDiagnostics=data.diagnostics||null;
     }
-    return {page_restored:restored,continuity_note:restored?'首页已重新加载，推荐可能变化，从当前内容继续。':'复用原首页。',status:items.size?'success':'no-visible-items',items:[...items.values()].slice(0,20),screens,y,homepage:home,closed_red_packet:popup?.closed===true,note:'仅首页已显示信息；价格、规格未核实。可直接分享url，未生成淘口令。',next_step:items.size?'可分享返回的商品链接。':'当前可视区域没有商品，可在冷却结束后用action=next向下浏览。',next_allowed_seconds:90};
+    return {page_restored:restored,continuity_note:restored?'首页已重新加载，推荐可能变化，从当前内容继续。':'复用原首页。',status:items.size?'success':'no-visible-items',items:[...items.values()].slice(0,20),screens,y,homepage:home,page_diagnostics:pageDiagnostics,closed_red_packet:popup?.closed===true,note:'仅首页已显示信息；价格、规格未核实。可直接分享url，未生成淘口令。',next_step:items.size?'可分享返回的商品链接。':'当前可视区域没有商品，可在冷却结束后用action=next向下浏览。',next_allowed_seconds:90};
    }catch(e){
     const message=String(e.stderr||e.message||'');
     if(/VERIFICATION_REQUIRED|LOGIN_REQUIRED|captcha/.test(message)){blockFor(30*60*1000);throw Error('淘宝要求验证或登录，请人工处理；本次已停止，不自动重试。');}

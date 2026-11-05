@@ -74,7 +74,7 @@ function pageActions(action, spec) {
     // The only marked element is the positively identified add-to-cart button.
     for (const old of document.querySelectorAll('[data-home-taobao-cart]')) old.removeAttribute('data-home-taobao-cart');
     button.setAttribute('data-home-taobao-cart', 'one');
-    // Retain the adapter's stable element reference for compatibility.
+    // OpenCLI's quad click uses this exact DOM ref to issue trusted CDP mouse events.
     button.setAttribute('data-opencli-ref', 'home-taobao-cart-one');
   }
   return result;
@@ -135,23 +135,29 @@ function validate(id, spec = "") {
 async function runAdapter(page, args) {
   const {id, spec} = validate(String(args.id || ""), args.spec || "");
   const evaluate = (fn, ...a) => page.evaluate(`(${fn.toString()})(${a.map(x => JSON.stringify(x)).join(',')})`);
-  let current=await page.evaluate('location.href');if(current&&typeof current==='object'&&'data'in current)current=current.data;
-  let same=false;try{const u=new URL(current);same=['item.taobao.com','detail.tmall.com'].includes(u.hostname)&&u.searchParams.get('id')===id;}catch{}
-  if(!same){await page.goto(`https://item.taobao.com/item.htm?id=${id}`);await page.wait(6);}
+  await page.goto(`https://item.taobao.com/item.htm?id=${id}`);
+  await page.wait(6);
   const selected = await evaluate(pageActions, "select", spec);
   if (selected.error) throw new Error(selected.error);
   await page.wait(1);
   const snapshot = await evaluate(pageActions, "mark", spec);
   if (snapshot.error) throw new Error(snapshot.error);
   if (snapshot.item_id !== id) throw new Error("页面商品 ID 不符，未加购。");
-  if (args['max-price'] !== undefined) {
-    const maximum=Number(args['max-price']),actual=Number(String(snapshot.price).replace(/^[￥¥]\s*/,''));
-    if(!Number.isFinite(maximum)||maximum<=0||!Number.isFinite(actual)||actual<=0||actual>maximum)throw new Error('实际规格价格超过预算或无法确认，未加购。');
+  if (args['test-click-transport']) {
+    const marked = await page.evaluate(`(() => { const el=document.querySelector('#tbpcDetail_SkuPanelItemhead_fixed span[title], [class*="mainTitle--"]'); if(!el)return false; el.setAttribute('data-home-transport-test','one'); return true; })()`);
+    if (!marked || typeof page.click !== 'function') throw new Error('无副作用点击自检不可用。');
+    // Uses OpenCLI's current resolver: scroll, measure, hit-test, then a native
+    // mouse press/release at the verified point. The title has no write effect.
+    await page.click('[data-home-transport-test="one"]');
+    const post = await evaluate(postClickState);
+    return [{status:'dry-run',...snapshot,evidence:`自检通过；购物车数量 ${post?.count ?? '未知'}`}];
   }
   if (args['dry-run']) return [{status:"dry-run", ...snapshot}];
   if ((await evaluate(successMessages)).length) throw new Error("页面已有成功提示，不能区分本次操作；已停止，未重复点击。");
   const countBefore = await evaluate(cartCount);
-  // Invoke the uniquely marked, visible and enabled cart button exactly once.
+  // Exactly one click path. The resolver measures and hit-tests immediately
+  // before issuing a native mouse press/release, so an overlay or stale point
+  // cannot silently receive the cart click.
   const clickResult = await evaluate(clickMarkedCart);
   if (clickResult?.error) throw new Error(clickResult.error);
   const clickMethod = ['cdp','js','dom'].includes(clickResult?.click_method) ? clickResult.click_method : 'unknown';

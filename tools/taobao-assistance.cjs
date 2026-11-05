@@ -94,7 +94,7 @@ function createAssistance({file=path.join(__dirname,'..','state','taobao-assista
   capture(name,args,value){
    if(!hinted(value))return value;
    const existing=current();if(existing)return response(existing);
-   const write=['taobao_add_cart'].includes(name)||name==='taobao_contact_seller'&&args.action==='send';
+   const write=['taobao_add_cart'].includes(name)||name==='taobao_contact_seller'&&args.action==='send'||name==='taobao_cart_select'&&args.action==='select';
    const state={id:crypto.randomUUID(),name,args:write?{}:args,write,time:now()};save(state);return response(state);
   },
   async resume(args){

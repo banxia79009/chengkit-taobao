@@ -4,6 +4,7 @@ function skuPage(action='inspect',args={}){
  if(!['item.taobao.com','detail.tmall.com'].includes(location.hostname))throw Error('SKU_WRONG_PAGE');
  const id=new URL(location.href).searchParams.get('id');if(args.item_id&&args.item_id!==id)throw Error('SKU_ITEM_CHANGED');
  const norm=s=>String(s||'').replace(/\s+/g,' ').trim();
+ const same=(a,b)=>norm(a).replace(/\s/g,'')===norm(b).replace(/\s/g,'');
  const visible=e=>!!e&&e.getClientRects().length&&getComputedStyle(e).display!=='none'&&getComputedStyle(e).visibility!=='hidden';
  let res=null;const contexts=[window.__ICE_APP_CONTEXT__,window.__ICE_APP_CONTEXT];
  // Fallback: parse a balanced JSON literal following a known product context anchor.
@@ -24,17 +25,19 @@ function skuPage(action='inspect',args={}){
  const labels=g=>[...g.querySelectorAll('[class*="valueItem--"]')].filter(visible).map(e=>({element:e,name:norm(e.querySelector('[class*="valueItemText--"]')?.getAttribute('title')||e.getAttribute('title')||e.querySelector('[class*="valueItemText--"]')?.textContent||e.textContent)}));
  if(action==='select'){
   const d=dimensions.find(d=>d.name===args.name);if(!d||!d.values.some(v=>v.name===args.value))throw Error('SKU_OPTION_NOT_FOUND');
-  const matches=groups().filter(g=>{const opts=labels(g);return opts.some(o=>o.name===args.value)&&opts.every(o=>d.values.some(v=>v.name===o.name));});
-  if(matches.length!==1)throw Error('SKU_GROUP_AMBIGUOUS');const opts=labels(matches[0]).filter(o=>o.name===args.value);if(opts.length!==1)throw Error('SKU_OPTION_AMBIGUOUS');const e=opts[0].element;
+  const matches=groups().filter(g=>{const opts=labels(g);return opts.some(o=>same(o.name,args.value))&&opts.every(o=>d.values.some(v=>same(v.name,o.name)));});
+  if(matches.length!==1)throw Error('SKU_GROUP_AMBIGUOUS');const opts=labels(matches[0]).filter(o=>same(o.name,args.value));if(opts.length!==1)throw Error('SKU_OPTION_AMBIGUOUS');const e=opts[0].element;
   if(e.getAttribute('aria-disabled')==='true'||e.getAttribute('data-disabled')==='true'||/disabled|gray/i.test(e.className||''))return {disabled:true};
   if(!/(?:^|\s)(?:selected|isSelected|active)(?:--|\s|$)/i.test(e.className||'')&&e.getAttribute('aria-selected')!=='true'){e.scrollIntoView({block:'center'});e.click();}return {selected:true};
  }
  if(action==='live'){
-  const selected={};for(const d of dimensions){const candidates=groups().filter(g=>{const opts=labels(g);return opts.length&&opts.every(o=>d.values.some(v=>v.name===o.name));});if(candidates.length!==1)continue;const values=labels(candidates[0]).filter(o=>/(?:^|\s)(?:selected|isSelected|active)(?:--|\s|$)/i.test(o.element.className||'')||o.element.getAttribute('aria-selected')==='true');if(values.length===1)selected[d.name]=values[0].name;}
+  const selected={};for(const d of dimensions){const candidates=groups().filter(g=>{const opts=labels(g);return opts.length&&opts.every(o=>d.values.some(v=>same(v.name,o.name)));});if(candidates.length!==1)continue;const values=labels(candidates[0]).filter(o=>/(?:^|\s)(?:selected|isSelected|active)(?:--|\s|$)/i.test(o.element.className||'')||o.element.getAttribute('aria-selected')==='true');if(values.length===1)selected[d.name]=d.values.find(v=>same(v.name,values[0].name))?.name||values[0].name;}
   const roots=[...panel.querySelectorAll('[class*="unit--"]')].filter(e=>visible(e)&&/^[￥¥]$/.test(norm(e.textContent))).map(e=>e.parentElement);
   const unique=[...new Set(roots)].filter(e=>/^[￥¥]\s*\d+(?:\.\d{1,2})?$/.test(norm(e.textContent)));
   const priceTexts=[...new Set(unique.map(e=>norm(e.textContent)))];const text=priceTexts.length===1?priceTexts[0]:null;const exact=text?.match(/^[￥¥]\s*(\d+(?:\.\d{1,2})?)$/);
-  return {selected,price:exact?Number(exact[1]):null,price_text:text,price_source:'visible_selected_sku_panel',item_id:id};
+  const shown=[...(panel||document).querySelectorAll('[class*="highlightPrice--"]')].filter(visible).map(e=>({label:norm(e.querySelector('[class*="title--"]')?.textContent),text:norm(e.querySelector('[class*="text--"]')?.textContent)}));
+  const after=[...new Map(shown.filter(x=>/优惠后|券后|到手|补贴后/.test(x.label)&&/^\d+(?:\.\d{1,2})?$/.test(x.text)).map(x=>[x.label+'|'+x.text,x])).values()];
+  return {selected,price:after.length===1?Number(after[0].text):exact?Number(exact[1]):null,price_text:after.length===1?'￥'+after[0].text:text,price_label:after.length===1?after[0].label:null,price_source:'visible_selected_sku_panel',item_id:id};
  }
  return {item_id:id,title,url:'https://'+location.hostname+'/item.htm?id='+id,dimensions,skus,sku_count:skus.length,data_source:res?'product_embedded_sku_data':null,ui_groups:groups().map(g=>({class:g.className,text:norm(g.firstElementChild?.textContent),options:labels(g).map(o=>o.name)})),share_controls:[...document.querySelectorAll('button,a,[role="button"],[title],[aria-label]')].filter(e=>visible(e)&&/^(分享|分享宝贝|分享商品|复制链接)$/.test(norm(e.getAttribute('title')||e.getAttribute('aria-label')||e.textContent))).slice(0,6).map(e=>({tag:e.tagName,text:norm(e.textContent),title:e.getAttribute('title'),class:e.className}))};
 }

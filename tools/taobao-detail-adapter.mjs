@@ -1,4 +1,8 @@
 import assistance from './taobao-assistance.cjs';
+import productApi from './taobao-product-page.cjs';
+import offersApi from './taobao-offers.cjs';
+import media from './taobao-media.cjs';
+import actionGap from './taobao-action-gap.cjs';
 const {gateSnapshot}=assistance;
 export function snapshot(gate) {
  const clean=x=>String(x||'').replace(/\s+/g,' ').trim();
@@ -22,7 +26,7 @@ export function snapshot(gate) {
  const imageEls=[...document.querySelectorAll('[class*="PicGallery"] img, [class*="picGallery"] img, [class*="mainPic"] img, [class*="MainPic"] img, [class*="thumbnail"] img')];
  const meta=document.querySelector('meta[property="og:image"]')?.content;
  const images=[...new Set([meta,...imageEls.map(e=>e.currentSrc||e.src)].filter(Boolean).map(s=>s.startsWith('//')?'https:'+s:s).filter(s=>{try{const v=new URL(s);return v.protocol==='https:'&&(v.hostname==='alicdn.com'||v.hostname.endsWith('.alicdn.com'));}catch{return false;}}))].slice(0,6);
- const reviewRoots=[...document.querySelectorAll('[class*="Comments--"], [class*="comments--"], [class*="Comment--"], [class*="comment--"], [class*="Rate--"], [class*="rate--"], [class*="Review--"], [class*="review--"]')].filter(e=>visible(e)&&/评价|评论/.test(e.textContent));
+ const reviewRoots=[]; // Reviews are read only by the separate review action.
 const reviewRoot=reviewRoots.sort((a,b)=>b.textContent.length-a.textContent.length)[0];
 const reviews=reviewRoot?clean(reviewRoot.innerText).slice(0,14000):'';
 const attrs=document.querySelector('[class*="paramsWrap--"], #attributes, [class*="Attrs--"], [class*="attrs--"], [class*="Attribute--"], [class*="attribute--"]');
@@ -51,7 +55,7 @@ export function reviewSnapshot(){
  return {entries,available_labels:[...root.querySelectorAll('span,button,div')].filter(e=>e.children.length===0&&/^(中评|差评|追评)/.test(e.textContent.trim())).map(e=>clean(e.textContent)).slice(0,10)};
 }
 export async function readFocusedReviews(page){
- const evalFn=async(fn,arg)=>{let x=await page.evaluate('('+fn.toString()+')('+JSON.stringify(arg??null)+')');if(x&&typeof x==='object'&&'session'in x&&'data'in x)x=x.data;return x;};
+ const evalFn=async(fn,arg)=>{const task=()=>page.evaluate('('+fn.toString()+')('+JSON.stringify(arg??null)+')');let x=await (fn===reviewAction?actionGap.gap.run(task):task());if(x&&typeof x==='object'&&'session'in x&&'data'in x)x=x.data;return x;};
  const opened=await evalFn(reviewAction,'open');
  if(opened?.status==='opened')await page.wait({time:3});
  const initial=await evalFn(reviewSnapshot);
@@ -73,13 +77,23 @@ export async function readDetail(page,args){
  if(u.protocol!=='https:'||u.username||u.password||u.port||!['item.taobao.com','detail.tmall.com','e.tb.cn','m.tb.cn'].includes(u.hostname))throw Error('INVALID_URL');
  let current=await page.evaluate('location.href');if(current&&typeof current==='object'&&'data'in current)current=current.data;
  let same=false;try{const active=new URL(current);same=['item.taobao.com','detail.tmall.com'].includes(active.hostname)&&['item.taobao.com','detail.tmall.com'].includes(u.hostname)&&active.searchParams.get('id')===u.searchParams.get('id');}catch{}
- if(!same){await page.goto(u.href);await page.wait({time:2});}
+ if(!same){await actionGap.gap.run(()=>page.goto(u.href));await page.wait({time:2});}
  const read=async()=>{let x=await page.evaluate('('+snapshot.toString()+')(('+gateSnapshot.toString()+')())');if(x&&typeof x==='object'&&'session'in x&&'data'in x)x=x.data;return x;};
  let data=await read();
  for(let i=0;i<20&&data?.error==='DETAIL_NOT_READY';i++){await page.wait({time:1});data=await read();}
- if(data?.redirect){await page.goto(data.redirect);await page.wait({time:6});data=await read();}
+ if(data?.redirect){await actionGap.gap.run(()=>page.goto(data.redirect));await page.wait({time:6});data=await read();}
  if(!data||data.error||data.redirect)throw Error(data?.error||'DETAIL_NOT_READY');
  if(!['e.tb.cn','m.tb.cn'].includes(u.hostname)&&data.item_id!==u.searchParams.get('id'))throw Error('ITEM_MISMATCH');
- data.reviews=await readFocusedReviews(page);
+ const extraRaw=await page.evaluate('('+productApi.productPage.toString()+')('+JSON.stringify('inspect')+','+JSON.stringify({item_id:data.item_id})+')');
+ const extra=extraRaw&&typeof extraRaw==='object'&&'session'in extraRaw&&'data'in extraRaw?extraRaw.data:extraRaw;
+ const candidates=(extra.skus||[]).filter(s=>Object.keys(s.specs).length===extra.pricing.selected_option_labels.length&&Object.values(s.specs).every(v=>extra.pricing.selected_option_labels.includes(v)));
+ data.selected_sku=candidates.length===1?candidates[0]:null;
+ data.pricing=offersApi.parseOffers({...extra.pricing,texts:extra.pricing.raw_texts,source:'detail_page_display',sku_id:data.selected_sku?.sku_id||null,selected_specs:data.selected_sku?.specs||null});
+ data.image_catalog=media.catalog(extra.images||[]).map(x=>({...x,item_id:data.item_id}));
+ data.images=data.image_catalog.filter(x=>x.kind==='main').map(x=>x.url);
+ data.detail_images=data.image_catalog.filter(x=>x.kind==='detail').map(x=>x.url);
+ data.image_skus=extra.skus;
+ data.image_discovery={complete:false,basis:'currently_loaded_images',inaccessible_detail_frames:extra.scroll.inaccessible_detail_frames};
+ data.reviews=args.reviews===true||args.reviews==='true'?await readFocusedReviews(page):{status:'not_requested',next_tool:'taobao_read_reviews',note:'基础详情不主动打开评论；AI可按比较需要自主调用评论工具。'};
  return [{payload:data}];
 }

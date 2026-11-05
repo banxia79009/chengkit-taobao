@@ -42,7 +42,7 @@ function clean(raw, input, preview) {
 }
 
 function createCart(deps={}) {
-  const directory = deps.directory || path.join(__dirname,'..','state');
+  const directory = deps.directory || path.join(__dirname,"..","state");
   const journal = path.join(directory,'cart-operations.jsonl');
   const lock = path.join(directory,'cart-write.lock');
   const ready = deps.ensureBrowser || ensureBrowser;

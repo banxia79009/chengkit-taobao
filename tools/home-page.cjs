@@ -25,7 +25,15 @@ function pageStep(scroll, expires) {
     items.push({title:lines[0].slice(0,250),url:clean.href,item_id:id,displayed_price:price?.[1]||'',summary:text.slice(0,500)});
     if(items.length>=10)break;
   }
-  return {items,y:scrollY,homepage:location.origin+location.pathname};
+  const diagnostics=items.length?null:{
+   viewport:{width:innerWidth,height:innerHeight,y:scrollY},
+   anchors:[...document.querySelectorAll('a[href]')].filter(a=>{const r=a.getBoundingClientRect();return shown(a)&&r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth;}).slice(0,70).map(a=>{
+    let link=null;try{const u=new URL(a.href,location.href);link={host:u.hostname,path:u.pathname,keys:[...u.searchParams.keys()],id:u.searchParams.get('id')||u.searchParams.get('itemId')||null};}catch{}
+    return {link,text:(a.innerText||'').slice(0,160),image:!!a.querySelector('img'),classes:String(a.className||'').slice(0,120),dataNid:a.getAttribute('data-nid')};
+   }),
+   itemAttributes:[...document.querySelectorAll('[data-nid],[data-item-id],[data-itemid]')].filter(shown).slice(0,12).map(a=>({tag:a.tagName,nid:a.getAttribute('data-nid'),item_id:a.getAttribute('data-item-id')||a.getAttribute('data-itemid')}))
+  };
+  return {items,diagnostics,y:scrollY,homepage:location.origin+location.pathname};
 }
 function dismissRedPacket(expires){
  if(location.protocol!=='https:'||!['www.taobao.com','www.taobao.com.cn'].includes(location.hostname)||!['/','/index.htm'].includes(location.pathname))throw Error('NOT_TAOBAO_HOME');

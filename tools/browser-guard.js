@@ -7,7 +7,7 @@ const NORMAL_COOLDOWN_MS = 90_000;
 const VERIFICATION_COOLDOWN_MS = 30 * 60_000;
 
 function createBrowserGuard(deps = {}) {
-  const directory = deps.directory || path.join(__dirname,'..','state');
+  const directory = deps.directory || path.join(__dirname,"..","state");
   const stateFile = path.join(directory, "taobao-browser-activity.json");
   const now = deps.now || Date.now;
   const normalCooldownMs = deps.normalCooldownMs ?? NORMAL_COOLDOWN_MS;

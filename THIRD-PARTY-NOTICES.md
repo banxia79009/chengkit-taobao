@@ -1,6 +1,6 @@
 # 来源与第三方许可
 
-核对日期：2026-10-27。本仓库与淘宝、OpenCLI、OpenAI没有官方隶属关系。
+核对日期：2026-11-05。本仓库与淘宝、OpenCLI、OpenAI没有官方隶属关系。
 
 ## OpenCLI
 
@@ -21,3 +21,9 @@
 Node.js、Google Chrome、OpenCLI Chrome扩展和OpenAI tunnel-client从各自官方来源安装，并遵守各自许可和服务条款。本仓库不包含其二进制分发包。云端连接是可选项，使用接收者自己的账号与凭证。
 
 第三方项目的许可证不自动决定本仓库自行编写部分的使用许可。所有者已确认本项目自行编写且有权授权部分采用PolyForm Noncommercial License 1.0.0，见根目录LICENSE与LICENSING.md。这不改变第三方自身许可证已授予的权利。
+
+
+## 图片卡片协议参考
+
+- MCP Apps 规范：[modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps)。本包没有分发其SDK，只使用协议约定。
+- OpenAI客户端UI文档：https://developers.openai.com/plugins/build/chatgpt-ui 。卡片HTML和客户端兼容处理由本项目实现，使用文档不表示官方背书或通用客户端兼容保证。

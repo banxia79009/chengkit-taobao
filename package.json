@@ -1,14 +1,15 @@
 {
   "name": "chengkit-taobao",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Windows Taobao MCP with optional native filters, SKU verification and read-only cart",
+  "description": "Windows Taobao MCP: native filters, SKU, images, saved comparisons and authorized cart discount preview",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "start": "node server.cjs",
-    "bind-browser": "node scripts/bind-browser.cjs"
+    "bind-browser": "node scripts/bind-browser.cjs",
+    "test": "node --test tests/*.test.cjs"
   },
   "license": "PolyForm-Noncommercial-1.0.0"
 }

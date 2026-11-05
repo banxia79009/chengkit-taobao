@@ -6,7 +6,7 @@ function createGate(root=path.join(__dirname,'..')){
   try{if(fs.existsSync(lock))throw Error('工具正在更新，当前操作尚未执行；更新完成后即可继续。');return await task();}finally{fs.unlinkSync(marker);}
  }
  function hasActive(){try{return fs.readdirSync(directory).some(n=>n.endsWith('.json'));}catch(e){if(e.code==='ENOENT')return false;throw e;}}
- const runMessage=(message,task)=>message.method==='tools/call'&&/^taobao_/.test(message.params?.name||'')?run(task):task();
+ const runMessage=(message,task)=>message.method==='cheng/prepare-reply'||message.method==='tools/call'&&/^(taobao_|xiaohongshu_)/.test(message.params?.name||'')&&!['xiaohongshu_read','xiaohongshu_upload_image'].includes(message.params?.name)?run(task):task();
  return {run,runMessage,hasActive,lock};
 }
 module.exports={...createGate(),createGate};

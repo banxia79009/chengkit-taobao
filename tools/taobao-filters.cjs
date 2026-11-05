@@ -26,6 +26,12 @@ function pageFilter(action,args={}){
   e.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));return {opened:true};
  }
  if(action==='state')return state();
+ if(action==='panel-state')return {open:blocks().length>0};
+ if(action==='discover-next'){
+  for(const b of blocks())if(expandControl(b))return {kind:'expand',group:title(b)};
+  const panels=[...document.querySelectorAll('[class*="panelFilterWrapper--"]')].filter(visible);if(panels.length!==1)unavailable();const p=panels[0];
+  return {kind:p.scrollTop+p.clientHeight<p.scrollHeight-2?'scroll':'complete',top:p.scrollTop,height:p.scrollHeight,viewport:p.clientHeight};
+ }
  if(action==='discover-step'){
   // Expand through native controls, including buttons that contain an SVG icon.
   for(const b of blocks()){const e=expandControl(b);if(e){e.scrollIntoView({block:'center'});e.click();return {changed:true,expanded:title(b)};}}
